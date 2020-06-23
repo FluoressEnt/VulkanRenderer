@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/x64/Debug
+/VulkanRenderer.sln
+/VulkanRenderer/VulkanRenderer.vcxproj.user
+/VulkanRenderer/VulkanRenderer.vcxproj.filters
+/VulkanRenderer/VulkanRenderer.vcxproj
+/VulkanRenderer/x64/Debug
+/.vs
+/Debug
+/VulkanRenderer/Debug
