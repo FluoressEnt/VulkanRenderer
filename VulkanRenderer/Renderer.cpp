@@ -14,6 +14,7 @@
 
 #include "Renderer.h"
 #include "Window.h" //remove me please and find another way to handle this
+#include "Utility.h"
 
 struct Vertex {
     glm::vec2 pos;
@@ -43,7 +44,7 @@ struct Vertex {
 
         return attributeDescriptions;
     }
-};   //renderer for now - should be object eventually - or decide how to split this
+};   //renderer for now - should be object eventually? - or decide how to split this
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
