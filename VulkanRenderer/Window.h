@@ -5,18 +5,24 @@
 
 class Window {
 public:
-GLFWwindow* window; //is a better way of doing this?
+    ~Window();
 
-Window();
-~Window();
+    static Window* getWindow();
 
-void pollWindowEvents();
-bool shouldWindowClose();
-static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+    void init();
+
+    void pollWindowEvents();
+    bool shouldWindowClose();
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
 private:
+    static Window* window; //there can only be one!
 
-const uint32_t windowWidth = 800;
-const uint32_t windowHeight = 800;
+    GLFWwindow* m_window;
+
+    Window();
+
+    const uint32_t windowWidth = 800;
+    const uint32_t windowHeight = 800;
 
 };

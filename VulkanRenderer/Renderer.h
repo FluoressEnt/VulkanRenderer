@@ -3,16 +3,32 @@
 
 #include <vector>
 #include <optional>
+#include <iostream>
 
 //#pragma once
 
 class Renderer {
 public:
-    Renderer(GLFWwindow* window);
     ~Renderer();
 
+    static Renderer* getGfxDevice();
+
+    void setWindow(GLFWwindow* m_window) { window = m_window; }
+
+    void init();
+    
     void renderFrame();
 
+    enum ShaderStage {
+        Vertex   = 1 << 0,
+        Geometry = 1 << 1,
+        Fragment = 1 << 2,
+        Compute  = 1 << 3
+    };
+
+    void setShaderProgram(std::string shaderName, ShaderStage shaderStage);
+    void endShaderProgram();
+ 
 private:
 #ifdef NDEBUG
     const bool enableValidationLayers = false;
@@ -21,6 +37,15 @@ private:
 #endif
 
     const int MAX_FRAMES_IN_FLIGHT = 2;  
+    
+    Renderer();
+
+    static Renderer* gfxDevice; //there can only be one!
+
+    GLFWwindow* window;
+
+    std::vector<VkShaderModule> activeShaders;
+    std::vector<VkPipelineShaderStageCreateInfo> activeCreateInfo;
 
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -35,8 +60,8 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger;  
     VkSurfaceKHR surface;  
 
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;  
-    VkDevice device;  
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkDevice device;
 
     VkQueue graphicsQueue;  
     VkQueue presentQueue;  
@@ -79,6 +104,10 @@ private:
 
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
+    void createGraphicsPipeline();
+
+    VkShaderStageFlagBits getVKShaderFlag(ShaderStage shaderStage);
+
 private:
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -117,7 +146,6 @@ private:
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
-    void createGraphicsPipeline();
 
     void createFramebuffers();
 

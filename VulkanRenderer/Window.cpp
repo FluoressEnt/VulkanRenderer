@@ -1,19 +1,33 @@
+#include "Renderer.h"
 #include "Window.h"
 
 
 Window::Window() {
+
+}
+
+Window::~Window() {
+    glfwDestroyWindow(m_window);
+    glfwTerminate();
+}
+
+Window* Window::getWindow() {
+    if (window == 0)
+        window = new Window();
+    return window;
+}
+
+void Window::init() {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, "VulkanRenderer", nullptr, nullptr);
-    glfwSetWindowUserPointer(window, this);
-    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    m_window = glfwCreateWindow(windowWidth, windowHeight, "VulkanRenderer", nullptr, nullptr);
+    glfwSetWindowUserPointer(m_window, this);
+    glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
 
-}
-Window::~Window() {
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    Renderer* gfxDevice = Renderer::getGfxDevice();
+    gfxDevice->setWindow(m_window);
 }
 
 void Window::pollWindowEvents() {
@@ -21,7 +35,7 @@ void Window::pollWindowEvents() {
 }
 
 bool Window::shouldWindowClose() {
-    return !glfwWindowShouldClose(window);
+    return !glfwWindowShouldClose(m_window);
 }
 
 void Window::framebufferResizeCallback(GLFWwindow* window, int width, int height) {

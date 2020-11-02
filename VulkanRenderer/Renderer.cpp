@@ -13,38 +13,7 @@
 #include <set>
 
 #include "Renderer.h"
-#include "Window.h" //remove me please and find another way to handle this
 #include "Utility.h"
-
-struct Vertex {
-    glm::vec2 pos;
-    glm::vec3 color;
-
-    static VkVertexInputBindingDescription getBindingDescription() {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-        return attributeDescriptions;
-    }
-};   //renderer for now - should be object eventually? - or decide how to split this
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
@@ -52,18 +21,11 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };   //renderer - inputs sent by object?
 
-const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f}, {1.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-};   //renderer - for now, sent through with object?
+Renderer::Renderer() {
 
-const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0
-};   //renderer - for now, sent through with object?
+}
 
-Renderer::Renderer(GLFWwindow * window) {
+void Renderer::init() {
     createInstance();
     setupDebugMessenger();
     createSurface(window);
@@ -88,6 +50,13 @@ Renderer::Renderer(GLFWwindow * window) {
 Renderer::~Renderer() {
     vkDeviceWaitIdle(device); //ensure we're not drawing anything before we start cleaning up
     cleanup();
+}
+
+Renderer* Renderer::getGfxDevice() {
+    if (gfxDevice == 0)
+        gfxDevice = new Renderer();
+
+    return gfxDevice;
 }
 
 void Renderer::renderFrame() {
@@ -470,27 +439,46 @@ VkShaderModule Renderer::createShaderModule(const std::vector<char>& code) {
     return shaderModule;
 }
 
+VkShaderStageFlagBits Renderer::getVKShaderFlag(ShaderStage shaderStage) {
+    //TODO: is there a better way of doing this?
+    switch (shaderStage) {
+    case Vertex:
+        return VK_SHADER_STAGE_VERTEX_BIT;
+    case Geometry:
+        return VK_SHADER_STAGE_GEOMETRY_BIT;
+    case Fragment:
+        return VK_SHADER_STAGE_FRAGMENT_BIT;
+    case Compute:
+        return VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+}
+
+void Renderer::setShaderProgram(std::string shaderName, ShaderStage shaderStage) {
+    //create shader module for input shader
+    auto shader = readFile(shaderName);
+    VkShaderModule shaderModule = createShaderModule(shader);
+    activeShaders.push_back(shaderModule);
+
+    //assign pipeline create info and save it for later
+    VkPipelineShaderStageCreateInfo shaderStageInfo{};
+    shaderStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageInfo.stage  = getVKShaderFlag(shaderStage);
+    shaderStageInfo.module = shaderModule;
+    shaderStageInfo.pName  = "main"; //TODO: and what if it's not called main?
+    activeCreateInfo.push_back(shaderStageInfo);
+}
+
+void Renderer::endShaderProgram() {
+
+    activeCreateInfo.clear();
+
+    for (VkShaderModule current : activeShaders) {
+        vkDestroyShaderModule(device, current, nullptr);
+    }
+    activeShaders.clear();
+}
+
 void Renderer::createGraphicsPipeline() {
-    auto vertShaderCode = readFile("S:/Code/VulkanRenderer/shaders/vert.spv"); //make this read from the shader folder instead of hardcoding pls
-    auto fragShaderCode = readFile("S:/Code/VulkanRenderer/shaders/frag.spv");
-
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -518,6 +506,8 @@ void Renderer::createGraphicsPipeline() {
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
     scissor.extent = swapChainExtent;
+
+    //below here is just generic input that isn't custom to the object being created. It's simply there to appease vulkan's setup of the graphics pipeline.
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -568,7 +558,7 @@ void Renderer::createGraphicsPipeline() {
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pStages = activeCreateInfo.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -584,8 +574,7 @@ void Renderer::createGraphicsPipeline() {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
 
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    endShaderProgram();
 }
 
 void Renderer::createFramebuffers() {

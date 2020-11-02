@@ -3,25 +3,36 @@
 
 #include "Window.h"
 #include "Renderer.h"
+#include "Square.h"
 
 class Application {
 public:
-    void run() { //improve on this in future
-        Window* window = new Window();
-        Renderer* renderer = new Renderer(window->window);
-        mainLoop(window, renderer);
+    void run() {
+        Window::getWindow()->init();
+
+        if (!Renderer::getGfxDevice())
+        {
+            const char* message = "Graphics device wasn't created succesfully!";
+            throw std::exception(message);
+        }
+
+        mainLoop();
     }
 
 private:
-    void mainLoop(Window* window, Renderer* renderer) {
-        while (window->shouldWindowClose()) {
-            window->pollWindowEvents();
-            //this is probably where we want to call update on gameobjects etc or their related systems
-            renderer->renderFrame();
+    void mainLoop() {
+        Square* square = new Square();
+
+        while (Window::getWindow()->shouldWindowClose()) {
+
+            Window::getWindow()->pollWindowEvents();
+            square->Update(); //first game object - obviously needs abstracting 
+            square->Render();
+            //renderer->renderFrame(); //how shall I handle rendering every frame?
         }
 
-        renderer->~Renderer();
-        window->~Window();
+        Renderer::getGfxDevice()->~Renderer();
+        Window::getWindow()->~Window();
     }
 };
 
