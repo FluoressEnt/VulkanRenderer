@@ -1,9 +1,10 @@
 #include "Renderer.h"
 #include "Window.h"
 
+Window* Window::window; //define singleton
 
 Window::Window() {
-
+    glfwInit();
 }
 
 Window::~Window() {
@@ -18,8 +19,6 @@ Window* Window::getWindow() {
 }
 
 void Window::init() {
-    glfwInit();
-
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     m_window = glfwCreateWindow(windowWidth, windowHeight, "VulkanRenderer", nullptr, nullptr);

@@ -8,13 +8,20 @@
 class Application {
 public:
     void run() {
-        Window::getWindow()->init();
 
+        if (!Window::getWindow())
+        {
+            const char* message = "GLFW wasn't initialised!";
+            throw std::exception(message);
+        }
         if (!Renderer::getGfxDevice())
         {
             const char* message = "Graphics device wasn't created succesfully!";
             throw std::exception(message);
         }
+
+        Window::getWindow()->init();
+        Renderer::getGfxDevice()->firstInit();
 
         mainLoop();
     }
@@ -22,13 +29,14 @@ public:
 private:
     void mainLoop() {
         Square* square = new Square();
+        Renderer::getGfxDevice()->secondInit();
 
         while (Window::getWindow()->shouldWindowClose()) {
 
             Window::getWindow()->pollWindowEvents();
             square->Update(); //first game object - obviously needs abstracting 
             square->Render();
-            //renderer->renderFrame(); //how shall I handle rendering every frame?
+            Renderer::getGfxDevice()->renderFrame(); //how shall I handle rendering every frame?
         }
 
         Renderer::getGfxDevice()->~Renderer();

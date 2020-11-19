@@ -15,7 +15,8 @@ public:
 
     void setWindow(GLFWwindow* m_window) { window = m_window; }
 
-    void init();
+    void secondInit();
+    void firstInit();
     
     void renderFrame();
 
@@ -35,6 +36,8 @@ private:
 #else
     const bool enableValidationLayers = true;  
 #endif
+    //make toggleable by define
+    const bool enableRenderdocMarkers = true;
 
     const int MAX_FRAMES_IN_FLIGHT = 2;  
     
@@ -52,7 +55,8 @@ private:
     };  
 
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        //VK_EXT_DEBUG_MARKER_EXTENSION_NAME -> this will only be present when launched from rdoc!! figure this out
     };
 
 
@@ -132,7 +136,7 @@ private:
 
     void createInstance();
 
-    void createSurface(GLFWwindow* window);
+    void createSurface();
 
     void createLogicalDevice();
 

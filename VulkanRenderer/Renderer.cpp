@@ -15,25 +15,45 @@
 #include "Renderer.h"
 #include "Utility.h"
 
+//TODO: items here need to be removed from the renderer and counterpart dependencies in the renderer needs to be abstracted
+//struct Vertex { //we don't need a struct for this going forward - it's only giving me a headache with sizeof offsetof memory allignement!
+//    glm::vec2 pos;
+//    glm::vec3 color;
+//};
+    float vertices[24] =
+                {-0.5f, -0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+                  0.5f, -0.5f,  0.0f,  0.0f, 0.0f, 1.0f,  //blue
+                  0.5f,  0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+                 -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, 1.0f}; //blue
+
+    uint16_t indices[6] = { 0, 1, 2, 2, 3, 0 };
+
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };   //renderer - inputs sent by object?
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Renderer* Renderer::gfxDevice;
+
 Renderer::Renderer() {
-
-}
-
-void Renderer::init() {
     createInstance();
     setupDebugMessenger();
-    createSurface(window);
+}
+
+void Renderer::firstInit() {
+    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+
     createSwapChain();
     createImageViews();
     createRenderPass();
+}
+
+void Renderer::secondInit() {
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createFramebuffers();
@@ -53,7 +73,7 @@ Renderer::~Renderer() {
 }
 
 Renderer* Renderer::getGfxDevice() {
-    if (gfxDevice == 0)
+    if (gfxDevice == nullptr)
         gfxDevice = new Renderer();
 
     return gfxDevice;
@@ -155,7 +175,7 @@ void Renderer::cleanup() {
     vkDestroyInstance(instance, nullptr);
 }
 
-void Renderer::recreateSwapChain() {
+void Renderer::recreateSwapChain() { 
     vkDeviceWaitIdle(device);
 
     cleanupSwapChain();
@@ -163,6 +183,8 @@ void Renderer::recreateSwapChain() {
     createSwapChain();
     createImageViews();
     createRenderPass();
+    //TODO: currently not functional as createGraphicsPipeline relies on the objects being submitted on startup
+    //handle this later so we can resize the window!
     createGraphicsPipeline();
     createFramebuffers();
     createUniformBuffers();
@@ -236,7 +258,7 @@ void Renderer::createInstance() {
     }
 }
 
-void Renderer::createSurface(GLFWwindow* window) { //could this be abstracted further? perhaps just drop the library altogether and do it myself for better control
+void Renderer::createSurface() {
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface!");
     }
@@ -432,6 +454,7 @@ VkShaderModule Renderer::createShaderModule(const std::vector<char>& code) {
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
+    // set the render constructor to run the init functions up untill we have a device created so this function can be called without asserting!
     if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create shader module!");
     }
@@ -450,6 +473,9 @@ VkShaderStageFlagBits Renderer::getVKShaderFlag(ShaderStage shaderStage) {
         return VK_SHADER_STAGE_FRAGMENT_BIT;
     case Compute:
         return VK_SHADER_STAGE_COMPUTE_BIT;
+    //TODO: this is very unclean and temp code for compile. Re-think and remove
+    default:
+        return VK_SHADER_STAGE_ALL;
     }
 }
 
@@ -482,13 +508,26 @@ void Renderer::createGraphicsPipeline() {
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding   = 0;
+    bindingDescription.stride    = sizeof(float)*6;
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; 
 
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+    attributeDescriptions[0].binding   = 0;
+    attributeDescriptions[0].location  = 0;
+    attributeDescriptions[0].format    = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[0].offset    = 0;//offsetof(Vertex, pos);
+
+    attributeDescriptions[1].binding   = 0;
+    attributeDescriptions[1].location  = 1;
+    attributeDescriptions[1].format    = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset    = sizeof(float)*3;//sizeof(glm::vec4); //offsetof(Vertex, color);
+
+    vertexInputInfo.vertexBindingDescriptionCount    = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount  = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions       = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions     = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -656,8 +695,8 @@ void Renderer::createCommandBuffers() {
 
         vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-        vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
+        vkCmdDrawIndexed(commandBuffers[i], (sizeof(indices)/sizeof(*indices)), 1, 0, 0, 0); //find length of array C style - will do as temporary for now while I flesh out what 
+                                                                                             //types of objects we're gonna have   
         vkCmdEndRenderPass(commandBuffers[i]);
 
         if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
@@ -667,7 +706,7 @@ void Renderer::createCommandBuffers() {
 }
 
 void Renderer::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    VkDeviceSize bufferSize = sizeof(vertices);
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -675,7 +714,7 @@ void Renderer::createVertexBuffer() {
 
     void* data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
+    memcpy(data, vertices, (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
@@ -687,7 +726,7 @@ void Renderer::createVertexBuffer() {
 }
 
 void Renderer::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    VkDeviceSize bufferSize = sizeof(indices);
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -695,7 +734,7 @@ void Renderer::createIndexBuffer() {
 
     void* data;
     vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
+    memcpy(data, indices, (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
@@ -1020,6 +1059,10 @@ std::vector<const char*> Renderer::getRequiredExtensions() {
     if (enableValidationLayers) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
+
+    //if (enableRenderdocMarkers) {
+    //    extensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+    //}
 
     return extensions;
 }
