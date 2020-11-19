@@ -16,17 +16,14 @@
 #include "Utility.h"
 
 //TODO: items here need to be removed from the renderer and counterpart dependencies in the renderer needs to be abstracted
-//struct Vertex { //we don't need a struct for this going forward - it's only giving me a headache with sizeof offsetof memory allignement!
-//    glm::vec2 pos;
-//    glm::vec3 color;
-//};
-    float vertices[24] =
-                {-0.5f, -0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
-                  0.5f, -0.5f,  0.0f,  0.0f, 0.0f, 1.0f,  //blue
-                  0.5f,  0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
-                 -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, 1.0f}; //blue
 
-    uint16_t indices[6] = { 0, 1, 2, 2, 3, 0 };
+    //float vertices[24] =
+    //            {-0.5f, -0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+    //              0.5f, -0.5f,  0.0f,  0.0f, 0.0f, 1.0f,  //blue
+    //              0.5f,  0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+    //             -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, 1.0f}; //blue
+
+    //uint16_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
@@ -456,7 +453,7 @@ VkShaderModule Renderer::createShaderModule(const std::vector<char>& code) {
     VkShaderModule shaderModule;
     // set the render constructor to run the init functions up untill we have a device created so this function can be called without asserting!
     if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
+        throw std::runtime_error("failed to create shader module:!");
     }
 
     return shaderModule;
@@ -475,6 +472,7 @@ VkShaderStageFlagBits Renderer::getVKShaderFlag(ShaderStage shaderStage) {
         return VK_SHADER_STAGE_COMPUTE_BIT;
     //TODO: this is very unclean and temp code for compile. Re-think and remove
     default:
+        throw std::runtime_error("Shouldn't be hitting getVKShaderFlag with a default case!");
         return VK_SHADER_STAGE_ALL;
     }
 }
@@ -494,7 +492,7 @@ void Renderer::setShaderProgram(std::string shaderName, ShaderStage shaderStage)
     activeCreateInfo.push_back(shaderStageInfo);
 }
 
-void Renderer::endShaderProgram() {
+void Renderer::endShaderProgram() { //TODO: re-write to be called to end by shader name/hash to keep active shaders in list
 
     activeCreateInfo.clear();
 
@@ -505,6 +503,9 @@ void Renderer::endShaderProgram() {
 }
 
 void Renderer::createGraphicsPipeline() {
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //TODO: Vertex setting data within this block probably also wants abstracting but I'm unsure about design atm
+    //      Re-asses how to handle this later once base square dependencies are abstracted
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -517,12 +518,12 @@ void Renderer::createGraphicsPipeline() {
     attributeDescriptions[0].binding   = 0;
     attributeDescriptions[0].location  = 0;
     attributeDescriptions[0].format    = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset    = 0;//offsetof(Vertex, pos);
+    attributeDescriptions[0].offset    = 0;
 
     attributeDescriptions[1].binding   = 0;
     attributeDescriptions[1].location  = 1;
     attributeDescriptions[1].format    = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset    = sizeof(float)*3;//sizeof(glm::vec4); //offsetof(Vertex, color);
+    attributeDescriptions[1].offset    = sizeof(float)*3;
 
     vertexInputInfo.vertexBindingDescriptionCount    = 1;
     vertexInputInfo.vertexAttributeDescriptionCount  = static_cast<uint32_t>(attributeDescriptions.size());
@@ -533,6 +534,7 @@ void Renderer::createGraphicsPipeline() {
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
+    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     VkViewport viewport{};
     viewport.x = 0.0f;

@@ -10,11 +10,19 @@ public:
     void Render();
     void Update();
 
-    //so these parts that I made private are public for the time being while I figure out how to share them with the renderer
-    std::vector<Vertex> vertices;
-    std::vector<uint16_t> indices;
-
+private:
     std::string vertShader;
     std::string fragShader;
-private:
+    //float vertices[24];
+    //uint16_t indices[6];
+
+    //for now hard code this here - refarctor to read in from file to emulate model loading later
+    // vec3 position, vec3 color
+    float vertices[24] =
+                {-0.5f, -0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+                  0.5f, -0.5f,  0.0f,  0.0f, 0.0f, 1.0f,  //blue
+                  0.5f,  0.5f,  0.0f,  1.0f, 0.0f, 0.0f,  //red
+                 -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, 1.0f}; //blue
+
+    uint16_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 };

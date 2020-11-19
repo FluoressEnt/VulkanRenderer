@@ -29,7 +29,8 @@ public:
 private:
     void mainLoop() {
         Square* square = new Square();
-        Renderer::getGfxDevice()->secondInit();
+        Renderer::getGfxDevice()->secondInit(); //TODO: We shouldn't be initialising game objects 
+                                                //then the renderer to accomodate the gfx pipeline 
 
         while (Window::getWindow()->shouldWindowClose()) {
 
